@@ -31,12 +31,13 @@ Before running the script, verify the following parameters inside the `.sh` file
 The script requires a `.csv` file with a header row. The format is: `Memory,Name,Frequency,Shift,Tone`.
 
 **Example `repeaters.csv`:**
-```csv
-Memory,Name,Frequency,Shift,Tone
-1,RV-1a,145600000,-600,118.8
-2,R5,145625000,-600,
-3,RU7,430025000,+1600,
-4,RU15,433500000,+1600,88.5
+```
+Memory  Name   Frequency  Shift  Tone
+1       RV-1a  145600000  -600   118.8
+2       R5     145625000  -600   
+3       RU7    430025000  +1600  
+4       RU15   433500000  +1600  88.5
+```
 
 **Notes:**
 
