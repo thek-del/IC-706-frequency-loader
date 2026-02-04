@@ -52,16 +52,32 @@ Memory  Name   Frequency  Shift  Tone
     chmod +x rfloader.sh
     ```
 
-2.  **Run the script by passing your CSV file as an argument**:
+2.  **Run the script**:
+    You can run the script by simply passing the CSV file, or by using the **Range Option** (`-l`) to process only specific memory slots.
+
+    **Basic usage (all rows):**
     ```bash
     ./rfloader.sh repeaters.csv
     ```
 
+    **Start from a specific memory:**
+    ```bash
+    ./rfloader.sh -l 70 repeaters.csv
+    ```
+
+    **Process a specific range (e.g., from 70 to 75):**
+    ```bash
+    ./rfloader.sh -l 70 75 repeaters.csv
+    ```
+
+    *Note: The script is flexible; the `-l` flag can be placed either before or after the filename.*
+
 3.  **Operation Flow**:
     * The script tunes the radio to the specified memory slot and frequency.
+    * If a range is specified, it will skip all channels outside that range and stop automatically once the upper limit is exceeded.
     * It pauses and waits for the **[Enter]** key.
-    * During the pause, you can manually set the shift, sub-audio tones, or memory name on the radio's front panel and perform the final save to the radio's internal memory.
-    * Press **Enter** on your keyboard to proceed to the next row in the file.
+    * During the pause, you can manually set the offset, sub-audio tones, or memory name on the radio's front panel and perform the final save.
+    * Press **Enter** on your keyboard to proceed to the next row.
 
 ## ⚠️ Troubleshooting
 
