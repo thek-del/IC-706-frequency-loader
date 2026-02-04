@@ -1,75 +1,111 @@
 #!/bin/bash
 
 # ==========================================================
-# Project: IC-706 CSV frequency loader
-# Autore: IV3KPO
+# Project: IC-706 CSV frequency loader (V2)
+# Author: IV3KPO
 # Description: loads frequencies from CSV to ICOM IC-706 via hamlib
-# Version: 1.0
-# Licence: MIT
+# Version: 1.1 (Added memory range support)
+# License: MIT
 # ==========================================================
 
-
-# Impostare il modello della radio ed il relativo device
-MODELLO=3011
+# Set radio model and serial device
+MODEL=3011
 DEVICE=/dev/serial/by-id/usb-FTDI_FT232R_USB_UART_BG01W8LC-if00-port0
 
-# Controllo se rigctl è installato ---
+START_MEM=0
+END_MEM=99
+FILE=""
+
+# --- Argument Parsing ---
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -l)
+      START_MEM="$2"
+      # Check if the third parameter exists and is a number
+      if [[ -n "$3" && "$3" =~ ^[0-9]+$ ]]; then
+        END_MEM="$3"
+        shift 2 # Consume -l and both numbers
+      else
+        shift 1 # Consume -l and the first number
+      fi
+      shift
+      ;;
+    *)
+      # If it's not a flag, treat it as the filename
+      FILE="$1"
+      shift
+      ;;
+  esac
+done
+
+# --- Initial Checks ---
+if [[ -z "$FILE" || ! -f "$FILE" ]]; then
+    echo "Error: CSV file not found or not specified."
+    echo "Usage: $0 [-l start [end]] file.csv"
+    echo "Examples:"
+    echo "  $0 list.csv            (Reads the entire CSV)"
+    echo "  $0 list.csv -l 70      (Start from memory 70 to the end)"
+    echo "  $0 -l 70 75 list.csv   (Load only memories 70 to 75)"
+    exit 1
+fi
+
 if ! command -v rigctl &> /dev/null; then
-    echo "Errore: 'rigctl' (hamlib) non è installato. Installalo con: sudo apt install libhamlib-utils"
+    echo "Error: 'rigctl' (hamlib) is not installed."
+    echo "Install it with: sudo apt install libhamlib-utils"
     exit 1
 fi
 
-# Controllo che il numero di argomenti sia esattamente 1
-if [ "$#" -ne 1 ]; then
-    echo "Errore: Devi fornire il percorso del file contenente le frequenze."
-    echo "Utilizzo: $0 file_frequenze.txt"
-    exit 1
-fi
-
-FILE=$1
-
-# Controllo che il file esista
-if [ ! -f "$FILE" ]; then
-    echo "Errore: Il file '$FILE' non esiste."
-    exit 1
-fi
-
-prima_riga=true
-
-echo "Lettura file: $FILE"
+echo "Reading file: $FILE"
+echo "Memory Range: $START_MEM to $END_MEM"
 echo "------------------------------------"
 
-while IFS="," read -r memoria nome frequenza shift tono || [ -n "$memoria" ]; do
-    # Salta l'intestazione (la prima riga del file)
-    if [ "$prima_riga" = true ]; then
-        prima_riga=false
+first_line=true
+
+# Read CSV file line by line
+while IFS="," read -r memory name frequency offset tone || [ -n "$memory" ]; do
+    # Skip the header (first line)
+    if [ "$first_line" = true ]; then
+        first_line=false
         continue
     fi
 
-    # Pulizia input
-    canale=$(echo "$memoria" | tr -d '[:space:]')
-    nome=$(echo "$nome" | tr -d '[:space:]')
-    freq=$(echo "$frequenza" | tr -d '[:space:]')
-    shift=$(echo "$shift" | tr -d '[:space:]')
-    tono=$(echo "$tono" | tr -d '[:space:]')
-
-    # Salta righe vuote o commenti
-    [[ -z "$canale" || "$canale" == "#"* ]] && continue
-
-    echo ">>> Impostazione Canale: $canale | Nome: $nome | Frequenza: $freq Hz | Shift: $shift | Tono: $tono"
-
-    # Seleziona la memoria
-    rigctl -m $MODELLO -r "$DEVICE" E "$canale"
+    # Clean input (remove whitespace)
+    channel=$(echo "$memory" | tr -d '[:space:]')
     
-    # Breve pausa per permettere alla CPU della radio di commutare (100ms)
+    # Skip empty lines or comments
+    [[ -z "$channel" || "$channel" == "#"* ]] && continue
+
+    # --- Range Filtering Logic ---
+    if (( channel < START_MEM )); then
+        continue
+    fi
+    
+    # If we exceeded the end limit, stop the script
+    if (( channel > END_MEM )); then
+        echo "Upper limit reached (Channel $channel > $END_MEM). Exiting."
+        break
+    fi
+
+    name=$(echo "$name" | tr -d '[:space:]')
+    freq=$(echo "$frequency" | tr -d '[:space:]')
+    offset=$(echo "$offset" | tr -d '[:space:]')
+    tone=$(echo "$tone" | tr -d '[:space:]')
+
+    echo ">>> Setting Channel: $channel | Name: $name | Frequency: $freq Hz | Shift: $offset | Tone: $tone"
+
+    # Select memory channel
+    rigctl -m $MODEL -r "$DEVICE" E "$channel"
+    
+    # Brief pause for radio CPU stabilization (100ms)
     sleep 0.1
     
-    # Imposta la frequenza sul VFO
-    rigctl -m $MODELLO -r "$DEVICE" F "$freq"
+    # Set frequency on VFO
+    rigctl -m $MODEL -r "$DEVICE" F "$freq"
 
-    read -p "Sintonizzato. Premi [Invio] per il prossimo..." < /dev/tty
+    # Interactive pause
+    read -p "Tuned. Press [Enter] for the next one. CTRL+C for exit" < /dev/tty
     echo "------------------------------------"
 
 done < "$FILE"
 
-echo "Fine lista."
+echo "Process completed."
