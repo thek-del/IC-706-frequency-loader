@@ -1,0 +1,75 @@
+#!/bin/bash
+
+# ==========================================================
+# Project: IC-706 CSV frequency loader
+# Autore: IV3KPO
+# Description: loads frequencies from CSV to ICOM IC-706 via hamlib
+# Version: 1.0
+# Licence: MIT
+# ==========================================================
+
+
+# Impostare il modello della radio ed il relativo device
+MODELLO=3011
+DEVICE=/dev/serial/by-id/usb-FTDI_FT232R_USB_UART_BG01W8LC-if00-port0
+
+# Controllo se rigctl è installato ---
+if ! command -v rigctl &> /dev/null; then
+    echo "Errore: 'rigctl' (hamlib) non è installato. Installalo con: sudo apt install libhamlib-utils"
+    exit 1
+fi
+
+# Controllo che il numero di argomenti sia esattamente 1
+if [ "$#" -ne 1 ]; then
+    echo "Errore: Devi fornire il percorso del file contenente le frequenze."
+    echo "Utilizzo: $0 file_frequenze.txt"
+    exit 1
+fi
+
+FILE=$1
+
+# Controllo che il file esista
+if [ ! -f "$FILE" ]; then
+    echo "Errore: Il file '$FILE' non esiste."
+    exit 1
+fi
+
+prima_riga=true
+
+echo "Lettura file: $FILE"
+echo "------------------------------------"
+
+while IFS="," read -r memoria nome frequenza shift tono || [ -n "$memoria" ]; do
+    # Salta l'intestazione (la prima riga del file)
+    if [ "$prima_riga" = true ]; then
+        prima_riga=false
+        continue
+    fi
+
+    # Pulizia input
+    canale=$(echo "$memoria" | tr -d '[:space:]')
+    nome=$(echo "$nome" | tr -d '[:space:]')
+    freq=$(echo "$frequenza" | tr -d '[:space:]')
+    shift=$(echo "$shift" | tr -d '[:space:]')
+    tono=$(echo "$tono" | tr -d '[:space:]')
+
+    # Salta righe vuote o commenti
+    [[ -z "$canale" || "$canale" == "#"* ]] && continue
+
+    echo ">>> Impostazione Canale: $canale | Nome: $nome | Frequenza: $freq Hz | Shift: $shift | Tono: $tono"
+
+    # Seleziona la memoria
+    rigctl -m $MODELLO -r "$DEVICE" E "$canale"
+    
+    # Breve pausa per permettere alla CPU della radio di commutare (100ms)
+    sleep 0.1
+    
+    # Imposta la frequenza sul VFO
+    rigctl -m $MODELLO -r "$DEVICE" F "$freq"
+
+    read -p "Sintonizzato. Premi [Invio] per il prossimo..." < /dev/tty
+    echo "------------------------------------"
+
+done < "$FILE"
+
+echo "Fine lista."
