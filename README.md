@@ -49,7 +49,7 @@ Memory  Name   Frequency  Shift  Tone
 
 1.  **Make the script executable**:
     ```bash
-    chmod +x rfloader.sh
+    chmod +x rfloader
     ```
 
 2.  **Run the script**:
@@ -57,17 +57,17 @@ Memory  Name   Frequency  Shift  Tone
 
     **Basic usage (all rows):**
     ```bash
-    ./rfloader.sh repeaters.csv
+    ./rfloader repeaters.csv
     ```
 
     **Start from a specific memory:**
     ```bash
-    ./rfloader.sh -l 70 repeaters.csv
+    ./rfloader -l 70 repeaters.csv
     ```
 
     **Process a specific range (e.g., from 70 to 75):**
     ```bash
-    ./rfloader.sh -l 70 75 repeaters.csv
+    ./rfloader -l 70 75 repeaters.csv
     ```
 
     *Note: The script is flexible; the `-l` flag can be placed either before or after the filename.*
